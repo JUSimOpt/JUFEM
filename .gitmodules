@@ -1,0 +1,3 @@
+[submodule "Hex1Mesh"]
+	path = Hex1Mesh
+	url = https://github.com/cenmir/Hex1Mesh.git
