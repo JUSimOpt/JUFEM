@@ -1,0 +1,3 @@
+function vizBCandLoads(model)
+
+end
