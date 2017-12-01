@@ -6,7 +6,37 @@ function model = PreProcessor(mesh,model,materialData)
 model = processBC(mesh,model);
 model.materialData = materialData;
 
+s = writeLog(model);
 
+end
+
+function outString = writeLog(model)
+outString = [];
+outString = [outString,sprintf('--------PreProcessor---------\n')];
+outString = [outString,sprintf('------------------------------------\n\n')];
+outString = [outString,sprintf('* Mesh info:\n')];
+outString = [outString,sprintf('Number of elements: %d\n',model.mesh.nele)];
+outString = [outString,sprintf('Number of nodes: %d\n',model.mesh.nnod)];
+outString = [outString,sprintf('Degrees of freedom per node: %d\n',model.dofs)];
+outString = [outString,sprintf('Total degrees of freedom: %d\n\n',length(model.u))];
+outString = [outString,sprintf('* Material info:\n')];
+fnames = fieldnames(model.materialData);
+for i = 1:length(fnames)
+    val = model.materialData.(fnames{i});
+    if isa(val,'function_handle')
+        outString = [outString,sprintf('Material.%s: %s\n',fnames{i},func2str(val))];
+    else
+        outString = [outString,sprintf('Material.%s: %s\n',fnames{i},val)];
+    end
+    
+end
+outString = [outString,sprintf('\n* Model info:\n')];
+outString = [outString,sprintf('nIncrements: %d\n',model.nIncrements)];
+outString = [outString,sprintf('maxiterations: %d\n',model.maxIterations)];
+outString = [outString,sprintf('Newton tolerance: %s\n',model.tol)];
+outString = [outString,sprintf('Solver: %s\n',func2str(model.solver))];
+
+fprintf(outString)
 end
 
 function model = processBC(mesh,model)
