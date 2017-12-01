@@ -6,6 +6,7 @@ clear,clc,close all
 % 
 %
 % Add the necessary packages
+addpath(fullfile('Gmsh','Gmsh'))
 addpath(fullfile('Hex1Mesh','Hex1Mesh'))
 addpath(fullfile('xFigure'))
 
@@ -15,11 +16,15 @@ addpath(fullfile('xFigure'))
 %% Create Model
 materialData = CreateMaterialData();
 
-refinements = 1;
+refinements = 3;
 mesh = CreateMesh(refinements);
-mesh.vizMesh('NodeNumbers')
+mesh.vizMesh()
 
 model.dofs = 3;
+model.nIncrements = 1;
+model.maxIterations = 200;
+model.tol = 1e-6;
+model.solver = @SolveNonLinImplicit;
 
 mesh = CreateSets(mesh);
 
@@ -29,14 +34,11 @@ mesh = CreateLoads(mesh);
 
 model = PreProcessor(mesh,model,materialData);
 
-vizBCandLoads(model)
+vizBCandLoads(model);
 
 %% Solver be here
+OUT = SolveNonLinImplicit(model);
 
-% U = SolveHyperElast(mesh,'nIncrements',1, 'maxIterations', 200, 'tol', 1e-6);
-
-% U = HyperElastConvStudy(mesh,'nIncrements',1, 'maxIterations', 200, 'tol', 1e-6);
-%U = HyperElastOnePoint(mesh,'nIncrements',1, 'maxIterations', 200, 'tol', 1e-1);
 
 
 %% User Defined functions for creating the model
@@ -55,25 +57,34 @@ materialData(1).E = E;
 materialData(1).nu = nu;
 materialData(1).K = K;
 materialData(1).mu = mu;
-
+materialData(1).materialFcn = @NeoHook3D_2PK;
 
 materialData(1).K = E/3/(1-2*nu); %Bulk Modulus
 end
 
 function mesh = CreateMesh(refinements)
 % User defined
-    x0=0;x1=4;
-    y0=0;y1=2;
-    z0=0;z1=2;
-    ratio = round((x1-x0)/(y1-y0));
-    nxe = ratio*refinements;
-    nye = refinements*3;
-    nze = refinements;
-    mesh = HexP1MeshAbaqus(x0,x1,nxe,y0,y1,nye,z0,z1,nze);
+%     x0=0;x1=10;
+%     y0=0;y1=2;
+%     z0=0;z1=2;
+%     ratio = round((x1-x0)/(y1-y0));
+%     nxe = ratio*refinements;
+%     nye = refinements;
+%     nze = refinements;
+%     mesh = HexP1MeshAbaqus(x0,x1,nxe,y0,y1,nye,z0,z1,nze);
+
+    [status,cmdout] = RunGmshScript('beamMeshGenerator.geo','verbose','on');
+    msh = MshRead(fullfile(pwd,'mesh.msh'),'typesToExtract',[3,5]);
+    1;
+    %remap Gmsh hex elements to Abaqus numbering
+    map = [5,6,2,1,8,7,3,4];
+    mesh = C3D8_Mesh(msh.P,msh.ElementList(2).nodes(:,map));
+
+    xfigure
+    h = mesh.vizMesh;
+    1;
     
-    % TODO: Read from .inp
-    % Create constructor that takes nodes and P as arguments
-    % Compute neighbors method
+    
 end
 
 function mesh = CreateSets(mesh)
@@ -120,9 +131,6 @@ for i = 1:length(ele)
 end
 mesh.ElementSets(3).nodes = nodes;
 
-
-
-1
 
 
 end
@@ -174,7 +182,11 @@ end
 
 
 
-
+function dir = UpDir(dir,n)
+    for i = 1:n
+        dir = fileparts(dir);
+    end
+end
 
 
 
