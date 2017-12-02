@@ -1,4 +1,4 @@
-function [cauchy_stress_tensor,constitutive_tensor,history_variables] = material(dstrain,properties,history_variables)
+function [cauchy_stress_tensor,constitutive_tensor,history_variables] = Material_2(dstrain,properties,history_variables)
 
 	lam = properties(1) * properties(2) / ((1 - 2 * properties(2)) * (1 + properties(2)))
 	mu = properties(1) / (2 * (1 + properties(2)))
@@ -93,25 +93,18 @@ function [cauchy_stress_tensor,constitutive_tensor,history_variables] = material
 
 % HARDENING RULE
 	function fkappa(properties,peeq)
-		double precision fkappa,properties(*),peeq
 		fkappa = properties(3) + mixed * properties(4) * peeq
-		return
 	end
 	function dkappa(properties,peeq)
-		double precision dkappa,properties(*),peeq
 		dkappa = mixed * properties(4) * peeq
-		return
 	end
+
 % PLASTIC MODULUS
 	function H(properties,peeq)
-		double precision H,properties(*),peeq
 		H = (1 - mixed) * properties(4) * peeq
-		return
 	end
 	function dH(properties,peeq)
-		double precision dH,properties(*),peeq
 		dH = (1 - mixed) * 0
-		return
 	end
       
 end
