@@ -37,6 +37,21 @@ outString = [outString,sprintf('Newton tolerance: %s\n',model.tol)];
 outString = [outString,sprintf('Solver: %s\n',func2str(model.solver))];
 
 fprintf(outString)
+
+fID = fopen('preProcessor.log','w');
+if fID == -1
+    error('Unable to write to file "preProcessor.log"')
+end
+
+try
+    fprintf(fID,outString);
+catch
+    fclose(fID);
+    error('Error writing to file "preProcessor.log"')
+end
+fclose(fID);
+
+
 end
 
 function model = processBC(mesh,model)
