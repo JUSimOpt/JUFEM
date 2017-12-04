@@ -16,9 +16,15 @@ addpath(fullfile('xFigure'))
 %% Create Model
 materialData = CreateMaterialData();
 
-refinements = 3;
-mesh = CreateMesh(refinements);
-mesh.vizMesh()
+refinements = 1; d = 1.5;
+mesh = CreateMesh(refinements,d);
+
+xfigure
+h = mesh.vizMesh;
+h.patch.FaceColor = 'w';
+light
+1;
+    
 
 model.dofs = 3;
 model.nIncrements = 1;
@@ -62,7 +68,7 @@ materialData(1).materialFcn = @NeoHook3D_2PK;
 materialData(1).K = E/3/(1-2*nu); %Bulk Modulus
 end
 
-function mesh = CreateMesh(refinements)
+function mesh = CreateMesh(refinements,d)
 % User defined
 %     x0=0;x1=10;
 %     y0=0;y1=2;
@@ -72,18 +78,49 @@ function mesh = CreateMesh(refinements)
 %     nye = refinements;
 %     nze = refinements;
 %     mesh = HexP1MeshAbaqus(x0,x1,nxe,y0,y1,nye,z0,z1,nze);
+    
+    %% Modify .geo file
+    inFile = 'beamMeshGenerator.geo';
+    fid = fopen(inFile,'r');
+    if fid == -1
+        error(['Cannot open the file: ', inFile])
+    end
+    try
+        s = textscan(fid,'%s','Delimiter','\n');
+    catch
+        fclose(fid);
+        error('Something went wrong reading the file!');
+    end
+    fclose(fid);
+    s = s{1};
+    
+    s{9} = ['d = ',num2str(d),'; //mm'];
+    
+    s{118} = '';
+    for i = 1:refinements
+        s{118} = [s{118},'RefineMesh;'];
+    end
+    
+    fid = fopen(inFile,'w');
+    if fid == -1
+        error(['Cannot open the file: ', inFile])
+    end
+    try
+        fprintf(fid,'%s\n',s{:});
+    catch
+        fclose(fid);
+        error('Something went wrong writing to the file!');
+        
+    end
+    fclose(fid);
 
+    %% Run gmsh
     [status,cmdout] = RunGmshScript('beamMeshGenerator.geo','verbose','on');
-    msh = MshRead(fullfile(pwd,'mesh.msh'),'typesToExtract',[3,5]);
+    msh = MshRead(fullfile(pwd,'mesh.msh'),'typesToExtract',[3,5]); %Extract element types 3 and 5 (Quads and Hex)
     1;
     %remap Gmsh hex elements to Abaqus numbering
     map = [5,6,2,1,8,7,3,4];
     mesh = C3D8_Mesh(msh.P,msh.ElementList(2).nodes(:,map));
-
-    xfigure
-    h = mesh.vizMesh;
-    1;
-    
     
 end
 
