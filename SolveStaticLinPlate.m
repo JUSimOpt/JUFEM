@@ -1,12 +1,8 @@
-function OUT = SolveNonLinImplicit(model)
+function OUT = SolveStaticLinPlate(model)
 1
 %%
 
 %%
-
-% Process model input. 
-% Input validation
-% Print output to console and log file
 
 
 
