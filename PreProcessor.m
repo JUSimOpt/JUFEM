@@ -3,12 +3,51 @@ function model = PreProcessor(mesh,model,materialData)
 % Everything is contained in the model struct.
 % TODO: Write to ascii file. .inp possibly in order to run in abaqus.
 
+%% Input Validation
+% TODO: Don't trust the user, check for logical constistancy. Throw error
+% messages if needed.
+
+
+
 model = processBC(mesh,model);
 model.materialData = materialData;
 
+
+
+%% Choose solver based on the model
+if model.step(1).nonLinearGeometry
+    model.solver = @SolveStaticNonLinImplicit;
+else
+    error('Not implemented'); %TODO: implement other solvers
+end
+
+
+%% Write log file
 s = writeLog(model);
 
+
+%% Write inp file
+% TODO:
+
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function outString = writeLog(model)
 outString = [];
@@ -31,10 +70,17 @@ for i = 1:length(fnames)
     
 end
 outString = [outString,sprintf('\n* Model info:\n')];
-outString = [outString,sprintf('nIncrements: %d\n',model.nIncrements)];
-outString = [outString,sprintf('maxiterations: %d\n',model.maxIterations)];
-outString = [outString,sprintf('Newton tolerance: %s\n',model.tol)];
-outString = [outString,sprintf('Solver: %s\n',func2str(model.solver))];
+
+nsteps = length(model.step);
+for i = 1:nsteps
+    outString = [outString,sprintf('Step: %s\n',model.step(i).name)];
+    outString = [outString,sprintf('Analysis type: %s\n',class(model.step(i).type))];
+    outString = [outString,sprintf('nonLinearGeometry: %d\n',model.step(i).nonLinearGeometry)];
+    outString = [outString,sprintf('maxIncrement: %d\n',model.step(i).maxIncrement)];
+    outString = [outString,sprintf('System solver: %s\n',model.step(i).solver)];
+end
+
+outString = [outString,sprintf('\n*Solver: %s\n',func2str(model.solver))];
 
 fprintf(outString)
 
