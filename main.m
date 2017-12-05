@@ -2,6 +2,7 @@ clear,clc,close all
 
 % This is a demo file solving a Hyperelastic model
 % Models are created using the user defined functions in this file. 
+% The mesh is created using gmsh and an .geo file describing the geometry.
 % TODO: Create an input file using ANSA
 % 
 %
@@ -27,10 +28,13 @@ light
     
 
 model.dofs = 3;
-model.nIncrements = 1;
-model.maxIterations = 200;
-model.tol = 1e-6;
-model.solver = @SolveNonLinImplicit;
+
+procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/2,'timePeriod',1,'minTimeIncrement',1/100,'maxTimeIncrement',1,...
+                                     'equilibriumTolerance',1e-3,'maxEquilibriumIterations',30);
+model.step(1) = AnalysisStep('Step-1',procedureType);
+model.step(1).nonLinearGeometry = 1;
+
+
 
 mesh = CreateSets(mesh);
 
@@ -43,7 +47,7 @@ model = PreProcessor(mesh,model,materialData);
 vizBCandLoads(model);
 
 %% Solver be here
-OUT = SolveNonLinImplicit(model);
+OUT = solve(model);
 
 
 
@@ -216,8 +220,6 @@ mesh.Loads(3).Direction = [0,1,0];
 mesh.Loads(3).Set = mesh.NodeSets(2).nodes;
 
 end
-
-
 
 function dir = UpDir(dir,n)
     for i = 1:n
