@@ -142,28 +142,3 @@ classdef C3D8_Mesh
  
 end
 
-function rv = isenabled(mode, varargin)
-    %   ISENABLED  Checks if mode exists in the cell-array varargin.
-    %
-    %   isenabled(mode,varargin{:}) return true or false.
-    %   example:
-    %
-    %          varargin = {'Viz', 'ElementNumber', 'debug', [20,20]};
-    %          isenabled('debug',varargin)
-    %          ans =
-    %               1
-    %
-    %   Author: Mirza Cenanovic (mirza.cenanovic@jth.hj.se)
-    %   Date: 2013-05-02
-    if nargin < 1
-        error('No arguments')
-    end
-    varargin = varargin{:};
-
-    ind = find(strcmpi(varargin,mode), 1);
-    if ~isempty(ind)
-        rv = 1;
-    else
-        rv = 0;
-    end
-end
