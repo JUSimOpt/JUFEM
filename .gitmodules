@@ -4,3 +4,6 @@
 [submodule "xfigure"]
 	path = xfigure
 	url = https://github.com/cenmir/xfigure.git
+[submodule "Gmsh"]
+	path = Gmsh
+	url = https://github.com/cenmir/Gmsh.git
