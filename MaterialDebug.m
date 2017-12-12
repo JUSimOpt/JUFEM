@@ -5,13 +5,14 @@
 
 clear
 
-dstrain = [0.001,0,0,0,0,0];
+dstrain = [0.001 0 0 0 0 0]';
+stress = [0 0 0 0 0 0]';
+properties = [210000 0.3];
 
-properties = [210000, 0.3];
-[cauchy_stress_tensor,constitutive_tensor] = Material_1(dstrain,properties);
+[stress,constitutive_tensor] = Material_1(stress,dstrain,properties);
 
 properties = [210000, 0.3, 1, 120, 7500];
-[cauchy_stress_tensor,constitutive_tensor] = Material_2(dstrain,properties);
+[stress,constitutive_tensor] = Material_2(stress,dstrain,properties);
 
 properties = [282692.307692308 121153.846153846 121153.846153846 0 0 0 282692.307692308 121153.846153846 0 0 0 282692.307692308 0 0 0 80769.2307692308 0 0 80769.2307692308 0 80769.2307692308];
-[cauchy_stress_tensor,constitutive_tensor] = Material_3(dstrain,properties);
+[stress,constitutive_tensor] = Material_3(stress,dstrain,properties);
