@@ -20,7 +20,8 @@ function f = StaticLoad(model,step)
                 case LoadType.PointLoad
                     BaseFunction = @BaseFcnOneNode;
                 case LoadType.BodyLoad
-                    error('Not implemented')
+                    [GP,GW] = C3D8_Mesh.IntegrationScheme(iLoad.IntegrationOrder);
+                    BaseFunction = @C3D8_Mesh.BaseFcnParam_Static;
                 case LoadType.SurfaceLoad
                     error('Not implemented')
                 otherwise
@@ -32,7 +33,7 @@ function f = StaticLoad(model,step)
             fval = iLoad.Magnitude;
             
             Bw = zeros(3,knod*dofs);
-            fe = zeros(knod*dofs,1);
+            
             for iel = 1:nele
                 inods = nodes(iel,:);
                 ieqs = zeros(3*length(inods),1);
@@ -41,7 +42,7 @@ function f = StaticLoad(model,step)
                 ieqs(3:3:end) = inods*3-0;
                 
                 Xc = mesh.P(inods,:);
-                
+                fe = zeros(knod*dofs,1);
                 for ig = 1:size(GP,1)
                     iXi = GP(ig,:); iW = GW(ig);
                     [fi, detJ] = BaseFunction(Xc,iXi);
@@ -54,6 +55,7 @@ function f = StaticLoad(model,step)
                 f(ieqs) = f(ieqs) + fe;
                 
             end
+            
         end
         
         
