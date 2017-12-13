@@ -5,3 +5,4 @@
 XFig*.mat
 /mesh.msh
 *.log
+/u_exact.mat
