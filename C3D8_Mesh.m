@@ -128,8 +128,8 @@ classdef C3D8_Mesh
             
         end
 
-        function [fi, B, detJ] = BaseFcnParam(obj,iel,iXi)
-            % [fi, B, detJ] = BaseFcnParam(iel,iXi);
+        function [fi, detJ, B] = BaseFcnParam(obj,iel,iXi)
+            % [fi, detJ, B] = BaseFcnParam(iel,iXi);
             % Unit cube with node one in 0,0,0
             %     8-----7
             %    /|    /|
@@ -148,14 +148,14 @@ classdef C3D8_Mesh
             % zeta in [0,1]
             locnods = obj.nodes(iel,:);
             Xc = obj.P(locnods,:);
-            [fi, B, detJ] = Priv_BaseFcnParam(Xc,iXi);
+            [fi, detJ, B] = Priv_BaseFcnParam(Xc,iXi);
         end
         
     end
     
     methods (Static)
-        function [fi, B, detJ] = BaseFcnParam_Static(Xc,iXi)
-            % [fi, B, detJ] = BaseFcnParam_Static(Xc,iXi)
+        function [fi, detJ, B] = BaseFcnParam_Static(Xc,iXi)
+            % [fi, detJ, B] = BaseFcnParam_Static(Xc,iXi)
             % Unit cube with node one in 0,0,0
             %     8-----7
             %    /|    /|
@@ -175,7 +175,7 @@ classdef C3D8_Mesh
             % xi in [0,1]
             % eta in [0,1]
             % zeta in [0,1]
-            [fi, B, detJ] = Priv_BaseFcnParam(Xc,iXi);
+            [fi, detJ, B] = Priv_BaseFcnParam(Xc,iXi);
         end
         
         function [GP,GW] = IntegrationScheme(order)
@@ -197,8 +197,8 @@ classdef C3D8_Mesh
  
 end
 
-function [fi, B, detJ] = Priv_BaseFcnParam(XC,iXi)
-% [fi, B, detJ] = BaseFcnParam(iel,iXi);
+function [fi, detJ, B] = Priv_BaseFcnParam(XC,iXi)
+% [fi, detJ, B] = BaseFcnParam(iel,iXi);
 % Unit cube with node one in 0,0,0
 %     8-----7
 %    /|    /|
@@ -274,7 +274,6 @@ detJ = det(J);
 B = J\[dfidxi.';dfideta.';dfidzeta.'];
 
 end
-
 
 
 function [x, w, A] = gauss(n, a, b)
