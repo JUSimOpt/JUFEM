@@ -1,2 +1,7 @@
 
 *.asv
+/mesh.inp
+/beamMeshGenerator.msh
+XFig*.mat
+/mesh.msh
+*.log
