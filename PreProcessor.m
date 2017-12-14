@@ -11,7 +11,7 @@ function model = PreProcessor(mesh,model,materialData)
 
 model = processBC(mesh,model);
 model.materialData = materialData;
-model.baseFcnParam = @mesh.BaseFcnParam_Static;
+
 
 %% Write log file
 s = writeLog(model);
