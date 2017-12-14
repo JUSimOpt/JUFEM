@@ -193,6 +193,59 @@ classdef C3D8_Mesh
             GW = prod(GW,2);
         end
         
+        function [fi, B, Bxi, Beta, Bzeta, detJ] = BaseFcnParam_1Point_Static(XC0)
+            % [fi, B, Bxi, Beta, Bzeta, detJ] = BaseFcnParam_1Point_Static(XC0)
+            % Unit cube with node one in 0,0,0
+            %     8-----7
+            %    /|    /|
+            %   5-----6 |
+            %   | 4...|.3
+            %   |/    |/
+            %   1-----2
+            %
+            % xi in [0,1]
+            % eta in [0,1]
+            % zeta in [0,1]
+            
+            fi = [0.1250    0.1250    0.1250    0.1250    0.1250    0.1250    0.1250    0.1250];
+            dfidxi = [-0.2500    0.2500    0.2500   -0.2500   -0.2500    0.2500    0.2500   -0.2500];
+            dfideta = [-0.2500   -0.2500    0.2500    0.2500   -0.2500   -0.2500    0.2500    0.2500];
+            dfidzeta = [-0.2500   -0.2500   -0.2500   -0.2500    0.2500    0.2500    0.2500    0.2500];
+            
+            
+            X0 = XC0(:,1);
+            Y0 = XC0(:,2);
+            Z0 = XC0(:,3);
+            
+            J = [dfidxi*X0(:), dfidxi*Y0(:), dfidxi*Z0(:);...
+                dfideta*X0(:), dfideta*Y0(:), dfideta*Z0(:);...
+                dfidzeta*X0(:), dfidzeta*Y0(:), dfidzeta*Z0(:)];
+            
+            detJ = det(J);
+            
+            Bh = [dfidxi;dfideta;dfidzeta];
+            
+            Bhxi = [0,    0,    0,    0,    0,    0,   0,    0;
+                0.5, -0.5,  0.5, -0.5,  0.5, -0.5, 0.5, -0.5;
+                0.5, -0.5, -0.5,  0.5, -0.5,  0.5, 0.5, -0.5];
+            
+            Bheta = [0.5, -0.5,  0.5, -0.5,  0.5, -0.5, 0.5, -0.5;
+                0,    0,    0,    0,    0,    0,   0,    0;
+                0.5,  0.5, -0.5, -0.5, -0.5, -0.5, 0.5,  0.5];
+            
+            Bhzeta = [0.5, -0.5, -0.5,  0.5, -0.5,  0.5, 0.5, -0.5;
+                0.5,  0.5, -0.5, -0.5, -0.5, -0.5, 0.5,  0.5;
+                0,    0,    0,    0,    0,    0,   0,    0];
+            
+            BB = J\[Bh,Bhxi,Bheta,Bhzeta];
+            B = BB(:,1:8);
+            Bxi = BB(:,9:16);
+            Beta = BB(:,17:24);
+            Bzeta = BB(:,25:32);
+            
+            
+        end
+        
     end
  
 end
