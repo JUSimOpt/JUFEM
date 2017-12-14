@@ -7,6 +7,21 @@ function f = StaticLoad(model,step)
     f = zeros(neq,1);
     nLoads = length(mesh.Loads);
     
+    switch class(mesh)
+        case 'C3D8_Mesh' 
+            EdgeMesh.IntegrationScheme = @T3D2_Mesh.IntegrationScheme;
+            ContinuumMesh.IntegrationScheme = @C3D8_Mesh.IntegrationScheme;
+            SurfaceMesh.IntegrationScheme = @M3D4_Mesh.IntegrationScheme;
+            
+            EdgeMesh.BaseFcnParam_Static = @EdgeMesh.BaseFcnParam_Static2;
+            ContinuumMesh.BaseFcnParam_Static = @C3D8_Mesh.BaseFcnParam_Static;
+            SurfaceMesh.BaseFcnParam_Static = @M3D4_Mesh.BaseFcnParam_Static;
+        otherwise
+            error('Mesh type not implemented!')
+    end
+    
+    
+    
     if dofs==3
         %% 3D
         for iLoadType = 1:nLoads
@@ -15,20 +30,23 @@ function f = StaticLoad(model,step)
             [nele,knod] = size(nodes);
             switch iLoad.Type
                 case LoadType.EdgeLoad
-                    [GP,GW] = T3D2_Mesh.IntegrationScheme(iLoad.IntegrationOrder);
-                    BaseFunction = @T3D2_Mesh.BaseFcnParam_Static2;
+                    % User defined depending on Continuum mesh type.
+                    [GP,GW] = EdgeMesh.IntegrationScheme(iLoad.IntegrationOrder);
+                    BaseFunction = EdgeMesh.BaseFcnParam_Static;
                 case LoadType.PointLoad
                     BaseFunction = @BaseFcnOneNode;
                 case LoadType.BodyLoad
-                    [GP,GW] = C3D8_Mesh.IntegrationScheme(iLoad.IntegrationOrder);
-                    BaseFunction = @C3D8_Mesh.BaseFcnParam_Static;
+                    [GP,GW] = ContinuumMesh.IntegrationScheme(iLoad.IntegrationOrder);
+                    BaseFunction = ContinuumMesh.BaseFcnParam_Static;
                 case LoadType.SurfaceLoad
-                    error('Not implemented')
+                    [GP,GW] = SurfaceMesh.IntegrationScheme(iLoad.IntegrationOrder);
+                    BaseFunction = SurfaceMesh.BaseFcnParam_Static;
                 otherwise
-                    error('Not implemented')
+                    error('Load type not implemented')
             end
             
             
+            %% Uses user defined base functions
             dir = iLoad.Direction;
             fval = iLoad.Magnitude;
             
