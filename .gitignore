@@ -2,3 +2,9 @@ XFig*.mat
 *.msh
 *.log
 /TempMatlab_refined.geo
+*.asv
+/mesh.inp
+/beamMeshGenerator.msh
+/mesh.msh
+/u_exact.mat
+

@@ -17,9 +17,6 @@ addpath(fullfile('xFigure'))
 %% Create Model
 refinements = 1; d = 0;
 mesh = CreateMesh(refinements,d);
-mesh = CreateSets(mesh);
-mesh = CreateBoundaryConditions(mesh);
-mesh = CreateLoads(mesh);
 
 xfigure
 h = mesh.vizMesh;
@@ -44,15 +41,19 @@ model.step(1) = AnalysisStep('Step-1',procedureType);
 model.step(1).nonLinearGeometry = 1;
 model.step(1).conservativeLoading = 1;
 
-% model.UserElement = @ElementDataFullIntegration_3D; %Default
-model.UserElement = @ElementData1PointIntegration_3D; %Default
-model.integrationOrder = 2;
 
+
+mesh = CreateSets(mesh);
+
+mesh = CreateBoundaryConditions(mesh);
+
+mesh = CreateLoads(mesh);
+
+
+model.UserElement = @ElementDataFullIntegration_3D; %Default
+model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
 model.UserLoad = @StaticLoad; %Default
-model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','on');
-% model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
-model.baseFcnParam = @mesh.BaseFcnParam_1Point_Static; % One point integration
-
+model.integrationOrder = 2;
 
 %% Pre-processing model
 % Runs an input validation and optionally writes and input file

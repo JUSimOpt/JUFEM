@@ -128,20 +128,31 @@ classdef C3D8_Mesh
             
         end
 
-
-
-
-
-
-
-
-
-
-        
+        function [fi, detJ, B] = BaseFcnParam(obj,iel,iXi)
+            % [fi, detJ, B] = BaseFcnParam(iel,iXi);
+            % Unit cube with node one in 0,0,0
+            %     8-----7
+            %    /|    /|
+            %   5-----6 |
+            %   | 4...|.3
+            %   |/    |/
+            %   1-----2
+            %
+            %
+            % xi = iXi(1,:);
+            % eta = iXi(2,:);
+            % zeta = iXi(3,:);
+            %
+            % xi in [0,1]
+            % eta in [0,1]
+            % zeta in [0,1]
+            locnods = obj.nodes(iel,:);
+            Xc = obj.P(locnods,:);
+            [fi, detJ, B] = Priv_BaseFcnParam(Xc,iXi);
         end
-
+        
     end
-
+    
     methods (Static)
         function [fi, detJ, B] = BaseFcnParam_Static(Xc,iXi)
             % [fi, detJ, B] = BaseFcnParam_Static(Xc,iXi)
@@ -269,17 +280,121 @@ X0 = XC(:,1);
 Y0 = XC(:,2);
 Z0 = XC(:,3);
 
+fi = [-(eta - 1)*(xi - 1)*(zeta - 1);...
+    xi*(eta - 1)*(zeta - 1);...
+    -eta*xi*(zeta - 1);...
+    eta*(xi - 1)*(zeta - 1);...
+    zeta*(eta - 1)*(xi - 1);...
+    -xi*zeta*(eta - 1);...
+    eta*xi*zeta;...
+    -eta*zeta*(xi - 1)].';
 
 
+dfidxi = [-(eta - 1)*(zeta - 1);
+    (eta - 1)*(zeta - 1);
+    -eta*(zeta - 1);
+    eta*(zeta - 1);
+    zeta*(eta - 1);
+    -zeta*(eta - 1);
+    eta*zeta;
+    -eta*zeta];
+
+dfideta = [-(xi - 1)*(zeta - 1);
+    xi*(zeta - 1);
+    -xi*(zeta - 1);
+    (xi - 1)*(zeta - 1);
+    zeta*(xi - 1);
+    -xi*zeta;
+    xi*zeta;
+    -zeta*(xi - 1)];
+
+dfidzeta = [-(eta - 1)*(xi - 1);
+    xi*(eta - 1);
+    -eta*xi;
+    eta*(xi - 1);
+    (eta - 1)*(xi - 1);
+    -xi*(eta - 1);
+    eta*xi;
+    -eta*(xi - 1)];
 
 
+J = [dfidxi.'*X0(:), dfidxi.'*Y0(:), dfidxi.'*Z0(:);...
+    dfideta.'*X0(:), dfideta.'*Y0(:), dfideta.'*Z0(:);...
+    dfidzeta.'*X0(:), dfidzeta.'*Y0(:), dfidzeta.'*Z0(:)];
 
+detJ = det(J);
 
+B = J\[dfidxi.';dfideta.';dfidzeta.'];
 
-
-
-        
-    end
- 
 end
 
+
+function [x, w, A] = gauss(n, a, b)
+
+%------------------------------------------------------------------------------
+% gauss.m
+%------------------------------------------------------------------------------
+%
+% Purpose:
+%
+% Generates abscissas and weigths on I = [ a, b ] (for Gaussian quadrature).
+%
+%
+% Syntax:
+%
+% [x, w, A] = gauss(n, a, b);
+%
+%
+% Input:
+%
+% n    integer    Number of quadrature points.
+% a    real       Left endpoint of interval.
+% b    real       Right endpoint of interval.
+%
+%
+% Output:
+%
+% x    real       Quadrature points.
+% w    real       Weigths.
+% A    real       Area of domain.
+%------------------------------------------------------------------------------
+
+
+% 3-term recurrence coefficients:
+n = 1:(n - 1);
+beta = 1 ./ sqrt(4 - 1 ./ (n .* n));
+
+% Jacobi matrix:
+J = diag(beta, 1) + diag(beta, -1); 
+
+
+% Eigenvalue decomposition:
+
+%
+% e-values are used for abscissas, whereas e-vectors determine weights.
+%
+
+[V, D] = eig(J);
+x = diag(D);
+
+
+% Size of domain:
+A = b - a;
+
+
+% Change of interval:
+
+%
+% Initally we have I0 = [ -1, 1 ]; now one gets I = [ a, b ] instead.
+%
+% The abscissas are Legendre points.
+%
+
+if ~(a == -1 && b == 1)
+  x = 0.5 * A * x + 0.5 * (b + a);
+end
+
+
+% Weigths:
+w = V(1, :) .* V(1, :);
+end

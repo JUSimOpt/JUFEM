@@ -6,7 +6,7 @@ Mirza Cenanovic, Nov 2017
 L=10; //mm
 W=2;  //mm
 H=2;  //mm
-d = 1.5; //mm
+d = 0; //mm
 //d = 0.2;
 //d = 0.4;
 

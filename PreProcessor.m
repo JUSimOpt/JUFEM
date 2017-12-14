@@ -13,15 +13,6 @@ model = processBC(mesh,model);
 model.materialData = materialData;
 
 
-
-%% Choose solver based on the model
-if model.step(1).nonLinearGeometry
-    model.solver = @SolveStaticNonLinImplicit;
-else
-    error('Not implemented'); %TODO: implement other solvers
-end
-
-
 %% Write log file
 s = writeLog(model);
 
@@ -57,7 +48,7 @@ outString = [outString,sprintf('* Mesh info:\n')];
 outString = [outString,sprintf('Number of elements: %d\n',model.mesh.nele)];
 outString = [outString,sprintf('Number of nodes: %d\n',model.mesh.nnod)];
 outString = [outString,sprintf('Degrees of freedom per node: %d\n',model.dofs)];
-outString = [outString,sprintf('Total degrees of freedom: %d\n\n',length(model.u))];
+outString = [outString,sprintf('Total degrees of freedom: %d\n\n',length(model.u0))];
 outString = [outString,sprintf('* Material info:\n')];
 fnames = fieldnames(model.materialData);
 for i = 1:length(fnames)
@@ -103,7 +94,7 @@ end
 function model = processBC(mesh,model)
 dofs = model.dofs; % TODO: where should this go?
 neq = mesh.nnod*dofs;
-u = zeros(neq,1);
+u0 = zeros(neq,1);
 
 nb = length(mesh.BoundarieConditions);
 presc=[];
@@ -112,15 +103,15 @@ for i = 1:nb
     presc_x = []; presc_y=presc_x; presc_z=presc_x;
     if isfield(mesh.BoundarieConditions(i),'U1')
         presc_x = 3*ind-2; % Prescribed x
-        u(presc_x) = 0;
+        u0(presc_x) = 0;
     end
     if isfield(mesh.BoundarieConditions(i),'U2')
         presc_y = 3*ind-1; % Prescribed y
-        u(presc_y) = 0;
+        u0(presc_y) = 0;
     end
     if isfield(mesh.BoundarieConditions(i),'U3')
         presc_z = 3*ind-0; % Prescribed z
-        u(presc_z) = 0;
+        u0(presc_z) = 0;
     end
     
     mesh.BoundarieConditions(i).presc_x=presc_x;
@@ -132,7 +123,7 @@ end
 free = setdiff(1:neq,presc)';
 
 
-model.u = u;
+model.u0 = u0;
 model.presc = presc;
 model.free = free;
 model.mesh = mesh;
