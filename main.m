@@ -44,12 +44,14 @@ model.step(1) = AnalysisStep('Step-1',procedureType);
 model.step(1).nonLinearGeometry = 1;
 model.step(1).conservativeLoading = 1;
 
-model.UserElement = @ElementDataFullIntegration_3D; %Default
+% model.UserElement = @ElementDataFullIntegration_3D; %Default
+model.UserElement = @ElementData1PointIntegration_3D; %Default
 model.integrationOrder = 2;
 
 model.UserLoad = @StaticLoad; %Default
 model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','on');
-
+% model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
+model.baseFcnParam = @mesh.BaseFcnParam_1Point_Static; % One point integration
 
 
 %% Pre-processing model
