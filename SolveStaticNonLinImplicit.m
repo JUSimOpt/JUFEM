@@ -53,14 +53,13 @@ end
 
 materialData = model.materialData;
 
-% Viz TODO: remove
-xfigure
-hp = patch('Faces',mesh.Faces,'Vertices',mesh.P,'CData',zeros(nnod,1),'FaceColor','interp');
-axis equal; view(3)
 
 %% Main Solver
 if IterationConvergenceStudy
     warning('Study must be run twice in order to get iteration errors.')
+    xfigure
+    hp = patch('Faces',mesh.Faces,'Vertices',mesh.P,'CData',zeros(nnod,1),'FaceColor','interp');
+    axis equal; view(3)
 end
 txt0 =  sprintf('| Step |  iTime |   dt     |  iter   |   r/r0     |\n');
 txt1 =  sprintf('|------|--------|----------|---------|------------|\n');
