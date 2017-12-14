@@ -1,4 +1,4 @@
-function [D_iso,D_vol,Sv_iso,Sv_vol]=NeoHook3D_2PK(H,C10,D1)
+function [D_iso,Sv_iso,D_vol,Sv_vol]=NeoHook3D_2PK(H,C10,D1)
     
     del=[1 0 0 0 1 0 0 0 1]';
     F=reshape(del+H,3,3)';

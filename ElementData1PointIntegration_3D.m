@@ -1,21 +1,15 @@
 function [Ke,ge] = ElementData1PointIntegration_3D(materialData,Xc,ue,ieqs,GP,GW,baseFcnParam,iTime,nTimeIncrements,delTime)
 
-%     loadFrac = iTime/nTimeIncrements;
-
-%     nLocDofs = length(ieqs);
-%     dofs = size(GP,2);
-%     ge = zeros(nLocDofs,1); % element internal load vector
-%     Ke = zeros(nLocDofs,nLocDofs); % element tangential stiffness matrix
-
     [fi, B, Bxi, Beta, Bzeta, detJ] = baseFcnParam(Xc);
+    
+    % B matrices and their xi-derivatives
     [BN,BL,BNXi,BNEta,BNZeta,BLXi,BLEta,BLZeta] = ComputeB_1Point(B,Bxi,Beta,Bzeta,ue);
     
     gradU = BN*ue;
     
-    [D_iso,D_vol,Sv_iso,Sv_vol]=materialData.materialFcn(gradU);
+    [D_iso,Sv_iso,D_vol,Sv_vol]=materialData.materialFcn(gradU);
     
     D = D_iso + D_vol; % Constitutive tensor on Voigt form
-%     Sv = Sv_iso + Sv_vol; % Stress tensor on Voigt form
     
     % Stress tensor
     ind = [1,4,6;
@@ -36,11 +30,7 @@ function [Ke,ge] = ElementData1PointIntegration_3D(materialData,Xc,ue,ieqs,GP,GW
     
     Stab_iso = 1/12*(BLXi'*D_iso*BLXi + BNXi'*T_iso*BNXi + ...
                    BLEta'*D_iso*BLEta + BNEta'*T_iso*BNEta + ...
-                   BLZeta'*D_iso*BLZeta + BNZeta'*T_iso*BNZeta);
-               
-%     Stab_vol = 1/12*(BLXi'*D_vol*BLXi + BNXi'*T_vol*BNXi + ...
-%                    BLEta'*D_vol*BLEta + BNEta'*T_vol*BNEta + ...
-%                    BLZeta'*D_vol*BLZeta + BNZeta'*T_vol*BNZeta);           
+                   BLZeta'*D_iso*BLZeta + BNZeta'*T_iso*BNZeta);          
 
 
     Ke =  detJ*( (BL'*D*BL+BN'*T*BN) + Stab_iso);
