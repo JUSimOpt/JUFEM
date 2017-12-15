@@ -15,7 +15,7 @@ addpath(fullfile('xFigure'))
 modelFileName = 'CooksMembrane.geo';
 
 refinements = 1;
-numberOfRuns = 10; 
+numberOfRuns = 1; 
 
 mesh = CreateMesh(modelFileName, refinements);
 mesh = CreateSets(mesh);
@@ -41,13 +41,17 @@ hold off
 
 nu_StoreValues = zeros(numberOfRuns,1);
 u_StoreValues = nu_StoreValues; 
+meanRate = nu_StoreValues; 
 nu_Vector = linspace(0.45,0.4999,numberOfRuns)';
 for iRuns = 1:numberOfRuns
+%     close all
+%     clear model    
     % materialData = CreateMaterialData();
     % Material properties
     E = 210000; %MPa
-%     nu = 0;
+    
     nu = nu_Vector(iRuns);
+    nu = 0;
     K=E/3/(1-2*nu);
     mu=E/2/(1+nu);
     mu1 = 0.5*mu;
@@ -86,6 +90,7 @@ for iRuns = 1:numberOfRuns
     OUT = model.solver(model);
     nu_StoreValues(iRuns) = nu; 
     u_StoreValues(iRuns) = OUT.u(solIeqs);
+    meanRate(iRuns) = OUT.meanRate(iRuns);
 end
 save('nu_vals', 'nu_StoreValues')
 save('u_1pointIntegration', ' u_StoreValues')
