@@ -261,6 +261,7 @@ end
 
 
 OUT.u = u;
+OUT.meanRate = meanRate;
 end
 
 
