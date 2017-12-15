@@ -8,3 +8,5 @@ XFig*.mat
 /mesh.msh
 /u_exact.mat
 
+/nu_vals.mat
+/u_1pointIntegration.mat
