@@ -15,61 +15,91 @@ addpath(fullfile('xFigure'))
 modelFileName = 'CooksMembrane.geo';
 
 refinements = 1;
+numberOfRuns = 10; 
 
 mesh = CreateMesh(modelFileName, refinements);
 mesh = CreateSets(mesh);
 mesh = CreateBoundaryConditions(mesh);
 mesh = CreateLoads(mesh);
 
-
 % debug figure
-xfigure
+xfigure; hold on;
 h = mesh.vizMesh;
 h.patch.FaceColor = 'w';
 light    
 view(20, -320)
 
+%% creating locking plot
+% finding similar node as used in Peters paper. 
+solNode = find(roundNR(mesh.P(:,1),4) == roundNR(max(mesh.P(:,1)),4) ...
+    & roundNR(mesh.P(:,2),4) == roundNR(min(mesh.P(:,2)),4) ...
+    & roundNR(mesh.P(:,3),4) == roundNR(max(mesh.P(:,3)),4));
+solIeqs = 3*solNode;
 
-% materialData = CreateMaterialData();
-% Material properties
-E = 210000; %MPa
-nu = 0.3;
-K=E/3/(1-2*nu);
-mu=E/2/(1+nu);
-mu1 = 0.5*mu;
-mu2 = mu-mu1;
-materialData(1).Type = 'Neo-Hooke';
-materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1/2,K);
-model.dofs = 3;
-procedureType = StaticGeneralAnalyis(   'initialTimeIncrement', 1, ...
-                                        'timePeriod', 1, ...
-                                        'minTimeIncrement', 1/100, ...
-                                        'maxTimeIncrement', 1,...
-                                        'equilibriumTolerance', 1e-3,...
-                                        'maxEquilibriumIterations', 30);
-                                    
-model.step(1) = AnalysisStep('Step-1', procedureType);
-model.step(1).nonLinearGeometry = 1;
-model.step(1).conservativeLoading = 1;
+scatter3(mesh.P(solNode,1), mesh.P(solNode,2), mesh.P(solNode,3),100,'r','filled')
+hold off
 
-% model.UserElement = @ElementDataFullIntegration_3D; %Default
-model.UserElement = @ElementData1PointIntegration_3D; %Default
-model.integrationOrder = 2;
+nu_StoreValues = zeros(numberOfRuns,1);
+u_StoreValues = nu_StoreValues; 
+nu_Vector = linspace(0.45,0.4999,numberOfRuns)';
+for iRuns = 1:numberOfRuns
+    % materialData = CreateMaterialData();
+    % Material properties
+    E = 210000; %MPa
+%     nu = 0;
+    nu = nu_Vector(iRuns);
+    K=E/3/(1-2*nu);
+    mu=E/2/(1+nu);
+    mu1 = 0.5*mu;
+    mu2 = mu-mu1;
+    materialData(1).Type = 'Neo-Hooke';
+    materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1/2,K);
+    model.dofs = 3;
+    procedureType = StaticGeneralAnalyis(   'initialTimeIncrement', 1, ...
+        'timePeriod', 1, ...
+        'minTimeIncrement', 1/100, ...
+        'maxTimeIncrement', 1,...
+        'equilibriumTolerance', 1e-3,...
+        'maxEquilibriumIterations', 30);
+    
+    model.step(1) = AnalysisStep('Step-1', procedureType);
+    model.step(1).nonLinearGeometry = 1;
+    model.step(1).conservativeLoading = 1;
+    
+    % model.UserElement = @ElementDataFullIntegration_3D; %Default
+    model.UserElement = @ElementData1PointIntegration_3D; %Default
+    model.integrationOrder = 2;
+    
+    model.UserLoad = @StaticLoad; %Default
+    model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','on');
+    % model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
+    model.baseFcnParam = @mesh.BaseFcnParam_1Point_Static; % One point integration
+    
+    %% Pre-processing model
+    % Runs an input validation and optionally writes and input file
+    % TODO inport model from .mat and run through the PreProcessor
+    model = PreProcessor(mesh,model,materialData);
+    
+    vizBCandLoads(model);
+    
+    %% Solver be here
+    OUT = model.solver(model);
+    nu_StoreValues(iRuns) = nu; 
+    u_StoreValues(iRuns) = OUT.u(solIeqs);
+end
+save('nu_vals', 'nu_StoreValues')
+save('u_1pointIntegration', ' u_StoreValues')
+% save('u_fullIntegration', ' u_StoreValues')
 
-model.UserLoad = @StaticLoad; %Default
-model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','on');
-% model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
-model.baseFcnParam = @mesh.BaseFcnParam_1Point_Static; % One point integration
-
-%% Pre-processing model
-% Runs an input validation and optionally writes and input file
-% TODO inport model from .mat and run through the PreProcessor
-model = PreProcessor(mesh,model,materialData);
-
-vizBCandLoads(model);
-
-%% Solver be here
-OUT = model.solver(model);
+%% creating Locking plot
+nuVals = load('nu_vals');
+uOnePoint = load('u_1pointIntegration');
+% uFullInteg = load('u_fullIntegration');
+xfigure; hold on; grid on; axis equal;
+xlabel('Poisson Ratio, \nu')
+ylabel('Displacement')
+% plot(nuVals,uOnePoint,'-ko', 'LineWidth',1, 'MarkerSize',5, 'MarkerEdgeColor','k')
+% plot(nuVals,uFullInteg,'--ko', 'LineWidth',1, 'MarkerSize',5, 'MarkerEdgeColor','k')
 
 function mesh = CreateMesh(inFile, refinements) 
 %% Run gmsh
@@ -123,7 +153,7 @@ mesh.NodeSets(1).name = 'Set-BC';
 mesh.NodeSets(1).nodes = find(mesh.P(:,1) == min(mesh.P(:,1)));
 
 mesh.NodeSets(2).name = 'SurfaceLoadSet';
-mesh.NodeSets(2).nodes = FindSurfaceNodes(mesh);
+mesh.NodeSets(2).nodes = FindSurfaceNodes(mesh, max(mesh.P(:,1)));
 end
 
 function mesh = CreateBoundaryConditions(mesh)
