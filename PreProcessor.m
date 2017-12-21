@@ -8,12 +8,15 @@ function model = PreProcessor(mesh,model,materialData)
 % messages if needed.
 
 
+model.dofs = size(mesh.P,2);
 
 model = processBC(mesh,model);
 model.materialData = materialData;
 
 
 %% Write log file
+filename = [model.name,'.log'];
+model.logfile = LogFile(filename,'w');
 s = writeLog(model);
 
 
@@ -75,18 +78,9 @@ outString = [outString,sprintf('\n*Solver: %s\n',func2str(model.solver))];
 
 fprintf(outString)
 
-fID = fopen('preProcessor.log','w');
-if fID == -1
-    error('Unable to write to file "preProcessor.log"')
-end
 
-try
-    fprintf(fID,outString);
-catch
-    fclose(fID);
-    error('Error writing to file "preProcessor.log"')
-end
-fclose(fID);
+model.logfile.write(outString)
+model.logfile.permission = 'a'; % Set logfile to append
 
 
 end
