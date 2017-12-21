@@ -2,58 +2,65 @@ clear,clc,close all
 
 % This is a demo file solving a Hyperelastic model
 % Models are created using the user defined functions in this file. 
-% The mesh is created using gmsh and an .geo file describing the geometry.
+% The mesh is created using gmsh and a .geo file describing the geometry.
 % TODO: Create an input file using ANSA
 % 
 %
 % Add the necessary packages
 addpath(fullfile('Gmsh','Gmsh'))
-addpath(fullfile('Hex1Mesh','Hex1Mesh'))
 addpath(fullfile('xFigure'))
 
 
 
 
-%% Create Model
+%% Create Model - User defined
+model.name = 'HansboBeam';
+
 refinements = 1; d = 0;
 mesh = CreateMesh(refinements,d);
+mesh = CreateSets(mesh);
+mesh = CreateBoundaryConditions(mesh);
+mesh = CreateLoads(mesh);
 
 xfigure
 h = mesh.vizMesh;
 h.patch.FaceColor = 'w';
 light
 1;
-model.dofs = size(mesh.P,2);
+
+
 
 % Material properties
-E = 210000; %MPa
-nu = 0;
-K=E/3/(1-2*nu);
-mu=E/2/(1+nu);
+E = 200; %GPa
+nu = 0.49;
+K=E/(3*(1-2*nu));
+mu=E/(2*(1+nu));
 mu1 = 0.5*mu;
 mu2 = mu-mu1;
 materialData(1).Type = 'Neo-Hooke';
-materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1/2,K);
+materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1,K);
 
-procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/1,'timePeriod',1,'minTimeIncrement',1/100,'maxTimeIncrement',1,...
+procedureType = StaticGeneralAnalyis('initialTimeIncrement',1,'timePeriod',1,'minTimeIncrement',1/100,'maxTimeIncrement',1,...
                                      'equilibriumTolerance',1e-3,'maxEquilibriumIterations',30);
 model.step(1) = AnalysisStep('Step-1',procedureType);
 model.step(1).nonLinearGeometry = 1;
 model.step(1).conservativeLoading = 1;
 
 
+% model.UserElement = @(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_Full(...
+%                      materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+%                      @mesh.BaseFcnParam_Static ); % Default
+                 
+model.UserElement = @(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_Reduced(...
+                     materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+                     @mesh.BaseFcnParam_Static,@mesh.BaseFcnParam_1Point_Static );
 
-mesh = CreateSets(mesh);
-
-mesh = CreateBoundaryConditions(mesh);
-
-mesh = CreateLoads(mesh);
-
-
-model.UserElement = @ElementDataFullIntegration_3D; %Default
-model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
-model.UserLoad = @StaticLoad; %Default
 model.integrationOrder = 2;
+
+model.UserLoad = @StaticLoad; %Default
+model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','off');
+
+
 
 %% Pre-processing model
 % Runs an input validation and optionally writes and input file
@@ -73,7 +80,7 @@ function mesh = CreateMesh(refinements,d)
 % User defined
     
     %% Modify .geo file
-    inFile = 'beamMeshGenerator.geo';
+    inFile = 'HansboBeam.geo';
     fid = fopen(inFile,'r');
     if fid == -1
         error(['Cannot open the file: ', inFile])
@@ -89,9 +96,10 @@ function mesh = CreateMesh(refinements,d)
     
     s{9} = ['d = ',num2str(d),'; //mm'];
     
-    s{118} = '';
+    RefineMeshLine = 119;
+    s{RefineMeshLine} = '';
     for i = 1:refinements
-        s{118} = [s{118},'RefineMesh;'];
+        s{RefineMeshLine} = [s{RefineMeshLine},'RefineMesh;'];
     end
     
     fid = fopen(inFile,'w');
@@ -108,7 +116,7 @@ function mesh = CreateMesh(refinements,d)
     fclose(fid);
 
     %% Run gmsh
-    [status,cmdout] = RunGmshScript('beamMeshGenerator.geo','verbose','on');
+    [status,cmdout] = RunGmshScript(inFile,'verbose','on','OutFile','mesh.msh');
     msh = MshRead(fullfile(pwd,'mesh.msh'),'typesToExtract',[3,5]); %Extract element types 3 and 5 (Quads and Hex)
     1;
     %remap Gmsh hex elements to Abaqus numbering
@@ -192,7 +200,7 @@ function mesh = CreateLoads(mesh)
 
 mesh.Loads(1).Name = 'VolumeLoad';
 mesh.Loads(1).Type = LoadType.BodyLoad;
-mesh.Loads(1).Magnitude = 100; %N/mm
+mesh.Loads(1).Magnitude = 10; %GN/mm^3
 mesh.Loads(1).Direction = [0,0,-1];
 mesh.Loads(1).Set = mesh.ElementSets(1).nodes;
 mesh.Loads(1).IntegrationOrder = 2; %Linear load on edge
