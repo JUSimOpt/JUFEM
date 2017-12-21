@@ -1,4 +1,4 @@
-function [D_iso,Sv_iso,D_vol,Sv_vol]=NeoHook3D_2PK(H,C10,D1)
+function [D_iso,Sv_iso,D_vol,Sv_vol]=NeoHook3D_2PK(H,mu1,K)
     
     del=[1 0 0 0 1 0 0 0 1]';
     F=reshape(del+H,3,3)';
@@ -48,11 +48,11 @@ function [D_iso,Sv_iso,D_vol,Sv_vol]=NeoHook3D_2PK(H,C10,D1)
 %     D=4*(K1*D2J1DC2 + K*(J3-1)*D2J3DC2+K*DJ3DC*DJ3DC');
 %     Sv=2*(K1*DJ1DC + K*(J3-1)*DJ3DC);
     
-    D_iso = 4*C10*D2J1DC2;
-    D_vol = 4*(D1*(J3-1)*D2J3DC2 + D1*DJ3DC*DJ3DC');
+    D_iso = 4*mu1*D2J1DC2;
+    D_vol = 4*(K*(J3-1)*D2J3DC2 + K*DJ3DC*DJ3DC');
     
-    Sv_iso = 2*C10*DJ1DC;
-    Sv_vol = 2*D1*(J3-1)*DJ3DC;
+    Sv_iso = 2*mu1*DJ1DC;
+    Sv_vol = 2*K*(J3-1)*DJ3DC;
     
     
     
