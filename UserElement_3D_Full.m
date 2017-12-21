@@ -1,4 +1,4 @@
-function [Ke,ge] = ElementDataFullIntegration_3D(materialData,Xc,ue,ieqs,GP,GW,baseFcnParam,iTime,nTimeIncrements,delTime)
+function [Ke,ge] = UserElement_3D_Full(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,baseFcnParam)
 
 %     loadFrac = iTime/nTimeIncrements;
 
@@ -11,6 +11,13 @@ function [Ke,ge] = ElementDataFullIntegration_3D(materialData,Xc,ue,ieqs,GP,GW,b
     
     % External load
 %     fe = fe*loadFrac;
+    ind = [1,4,6;
+           4,2,5;
+           6,5,3];
+    I = eye(3);
+    Iv = I(:);
+    
+    E = zeros(3); Stress = E;
     
     nIntegrationPoints = size(GP,1);
     for iG = 1:nIntegrationPoints
@@ -19,14 +26,21 @@ function [Ke,ge] = ElementDataFullIntegration_3D(materialData,Xc,ue,ieqs,GP,GW,b
 %         [BN,BL,BNXi,BNEta,BNZeta,BLXi,BLEta,BLZeta] = ComputeB1Point(B,Bxi,Beta,Bzeta,Ue);
         [BN,BL] = ComputeB(B,ue);
         gradU = BN*ue;
+        
+        
+        F=reshape(Iv+gradU,3,3)';
+        C=F'*F;
+        E = (C-I)/2; %Engineering strain
+        
+        
 %         [D_iso,D_vol,Sv_iso,Sv_vol]=NeoHook3D_2PK(H,C10,D1)
-        [D_iso,D_vol,Sv_iso,Sv_vol]=materialData.materialFcn(gradU);
+        [D_iso,Sv_iso,D_vol,Sv_vol]=materialData.materialFcn(gradU);
         
         D = D_iso + D_vol; % Constitutive tensor on Voigt form
         Sv = Sv_iso + Sv_vol; % Stress tensor on Voigt form
         
         % Stress tensor 
-        S=[Sv(1),Sv(4),Sv(6);Sv(4),Sv(2),Sv(5);Sv(6),Sv(5),Sv(3)];
+        S = Sv(ind);
         T = [S,zeros(3),zeros(3);
              zeros(3),S,zeros(3);
              zeros(3),zeros(3),S];
@@ -39,6 +53,7 @@ function [Ke,ge] = ElementDataFullIntegration_3D(materialData,Xc,ue,ieqs,GP,GW,b
         
     end
 %     re = (fe-ge);
+1;
 end
 
 function [BN,BL] = ComputeB(B,Ue)
