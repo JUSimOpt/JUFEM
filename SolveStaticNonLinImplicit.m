@@ -29,7 +29,6 @@ free = model.free; % Free dofs
 
 % Choose ElementData function
 UserElement = model.UserElement;
-baseFcnParam = model.baseFcnParam;
 UserLoad = model.UserLoad;
 
 [GP,GW] = mesh.IntegrationScheme(model.integrationOrder);
@@ -55,25 +54,29 @@ materialData = model.materialData;
 
 
 %% Main Solver
+xfigure
+hp = patch('Faces',mesh.Faces,'Vertices',mesh.P,'CData',zeros(nnod,1),'FaceColor','interp');
+axis equal; view(3)
+
 if IterationConvergenceStudy
     warning('Study must be run twice in order to get iteration errors.')
-    xfigure
-    hp = patch('Faces',mesh.Faces,'Vertices',mesh.P,'CData',zeros(nnod,1),'FaceColor','interp');
-    axis equal; view(3)
 end
-txt0 =  sprintf('| Step |  iTime |   dt     |  iter   |   r/r0     |\n');
-txt1 =  sprintf('|------|--------|----------|---------|------------|\n');
-fprintf(txt0)
-fprintf(txt1)
+displog(model,'\n\n-------Static Implicit Non-Linear Solver-------\n');
+displog(model,[TimeStamp(),'   Starting step\n']);
+displog(model,'-----------------------------------------------\n');
+txt0 =  sprintf('|  i  | Step |  time  |    dt   |  iter   |   r/r0     |\n');
+txt1 =  sprintf('|-----|------|--------|---------|---------|------------|\n');
+displog(model,txt0);
+displog(model,txt1);
           
 for istep = 1:length(steps)
    % Loop through steps
    step = steps(istep);
    analysisType = step.type;
    maxINC = analysisType.maxEquilibriumIterations;
-   delTime = analysisType.initialTimeIncrement;
+   dTime = analysisType.initialTimeIncrement;
    totTime = analysisType.timePeriod;
-   nTimeIncrements = totTime/delTime;
+   nTimeIncrements = totTime/dTime;
    tol = analysisType.equilibriumTolerance;
    
    if step.conservativeLoading==1
@@ -85,27 +88,28 @@ for istep = 1:length(steps)
    
    u = model.u0; %Initialize the displacement field
    
-   cInc = 1; %Increment counter
-   for iTime = 1:nTimeIncrements
-      % Loop over all time increments
+   cInc = 0; %Increment counter
+   time = 0;
+   while 1 % Loop over all time increments
+      u_prev = u;
+      time = time + dTime;
+      if time > totTime
+          break
+      end
+      
+      loadFrac = time/totTime;
+      f_frac = f*loadFrac;
       
       if IterationConvergenceStudy
-          
-          iterations = [];
-          conditions = [];
-          
-          
+          iterations = []; conditions = [];          
           try 
               u_exact = load('u_exact');
               u_exact = u_exact.u;
-              
               if length(u_exact) ~= neq
                   u_exact = zeros(neq,1);
               end
-              
               xfigure
-              errs = [];
-              hp_err = plot(0,0,'b-o'); hold on
+              errs = [];hp_err = plot(0,0,'b-o'); hold on
               set(gca,'YScale','log')
               grid minor
               xlabel('Iteration')
@@ -120,19 +124,16 @@ for istep = 1:length(steps)
           hp2 = plot(0,tol,'k-');
           xlabel('Iteration')
           ylabel('|R|/|R0| - Residual force')
-          title(['Load Increment: ',num2str(iTime)])
+          title(['Load fraction: ',num2str(loadFrac)])
       end
       
-      loadFrac = iTime/nTimeIncrements;
-      f_frac = f*loadFrac;
+      
       
       for iter = 1:maxINC %TODO change name to MaxIterations
           % Loop over all equilibrium iterations
           % Pre-allocate for assembler, enables paralization of the element
-          % loop.
-          
-          
-          
+          % loop.    
+          cInc = cInc + 1;
           
           g = zeros(neq,1); %Internal forces
           row = zeros(nele, idofs^2, 'double'); col = row; 
@@ -167,7 +168,7 @@ for istep = 1:length(steps)
 %                       fe = f(ieqs);
                       Xc = points(inods,:);
                       
-                      [Ke,ge] = UserElement(materialData,Xc,ue,ieqs,GP,GW,baseFcnParam,iTime,nTimeIncrements,delTime);
+                      [Ke,ge] = UserElement(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter);
                       
                       
                       % Assemble
@@ -196,9 +197,17 @@ for istep = 1:length(steps)
                       r0=r;
                   end
                   stopCond=norm(r(free))/norm(r0(free));
+                  if stopCond > 1e6
+%                      error('Iterations are diverging!') 
+                    time = time - dTime;
+                    dTime = dTime/2;
+                    u = u_prev;
+                    break;
+                  end
                   
-                  txt3 = sprintf('| %3d  | %3d    | %0.2e |  %3d    | %0.4e |  \n',istep,iTime,loadFrac,iter,stopCond);
-                  fprintf(txt3)
+                  
+                  txt3 = sprintf('| %3d | %3d  | %0.4f | %0.4f  |  %3d    | %0.4e |  \n',cInc,istep,time,dTime,iter,stopCond);
+                  displog(model,txt3);
                   
                   if IterationConvergenceStudy
                       iterations(end+1) = iter;
@@ -236,24 +245,26 @@ for istep = 1:length(steps)
       if cInc > step.maxIncrement
           error('Max increment reached.') %TODO: Figure out what Abaqus does here
       end
-      cInc = cInc + 1;
+      
+      if IterationConvergenceStudy
+          try
+              save('u_exact','u')
+          catch
+              error('Unable to write "u_exact"')
+          end
+          if ~isempty(errs)
+              ei1 = abs(log(errs(2:end)));
+              ei0 = abs(log(errs(1:end-1)));
+              rate = ei1./ei0;
+              rate(end)=[];
+              rate = rate'
+              meanRate = mean(rate)
+          end
+      end
+      
    end
    
-   if IterationConvergenceStudy
-       try
-           save('u_exact','u')
-       catch
-           error('Unable to write "u_exact"')
-       end
-       if ~isempty(errs)
-           ei1 = abs(log(errs(2:end)));
-           ei0 = abs(log(errs(1:end-1)));
-           rate = ei1./ei0;
-           rate(end)=[];
-           rate = rate'
-           meanRate = mean(rate)
-       end
-   end
+   
     
 end
 
@@ -263,5 +274,13 @@ OUT.u = u;
 end
 
 
+function displog(model,msg)
+    fprintf(msg)
+    model.logfile.write(msg);
+end
 
+function str = TimeStamp()
+    c = clock;
+    str = sprintf('%d-%d-%d %d:%d:%2.1f',c(1),c(2),c(3),c(4),c(5),c(6));
+end
 
