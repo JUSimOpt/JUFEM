@@ -13,7 +13,7 @@ function f = StaticLoad(model,step)
             ContinuumMesh.IntegrationScheme = @C3D8_Mesh.IntegrationScheme;
             SurfaceMesh.IntegrationScheme = @M3D4_Mesh.IntegrationScheme;
             
-            EdgeMesh.BaseFcnParam_Static = @EdgeMesh.BaseFcnParam_Static2;
+            EdgeMesh.BaseFcnParam_Static = @T3D2_Mesh.BaseFcnParam_Static2;
             ContinuumMesh.BaseFcnParam_Static = @C3D8_Mesh.BaseFcnParam_Static;
             SurfaceMesh.BaseFcnParam_Static = @M3D4_Mesh.BaseFcnParam_Static;
         otherwise
