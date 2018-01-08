@@ -4,9 +4,9 @@ Mirza Cenanovic, Nov 2017
 */
 
 L=10; //mm
-W=2;  //mm
-H=2;  //mm
-d = 0; //mm
+W=2; //mm
+H=2; //mm
+d = 4; //mm
 //d = 0.2;
 //d = 0.4;
 
@@ -115,4 +115,5 @@ Transfinite Volume{2};
 Mesh 3; //Creates 3D Mesh
 
 //RefineMesh;
-RefineMesh;
+
+
