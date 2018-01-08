@@ -1,4 +1,4 @@
-function OUT = SolveStaticNonLinImplicit(model,varargin)
+function out = SolveStaticNonLinImplicit(model,varargin)
 % Parameters:
 % 'IterationConvergenceStudy' - 'On' or 'off'. Default 'Off'.   
 
@@ -52,6 +52,28 @@ end
 
 materialData = model.materialData;
 
+%% Pre-allocating output data
+nSteps = length(steps);
+maxnTimeIncs = 0;
+elehistvar.ip(size(GP,1)).S = zeros(3); %Stress
+elehistvar.ip(size(GP,1)).EE = zeros(3); %Elastic Strain
+nodhistvar.u = zeros(neq,1);
+nodhistvar.f = zeros(neq,1);
+for istep = 1:nSteps
+   step = steps(istep);
+   analysisType = step.type;
+   dTime = analysisType.initialTimeIncrement;
+   totTime = analysisType.timePeriod;
+   nTimeIncrements = totTime/dTime;
+   for iinc = 1:nTimeIncrements
+       out.step(nSteps).inc(iinc).elehistvar(nele) = elehistvar;
+       out.step(nSteps).inc(iinc).nodhistvar = nodhistvar;
+   end
+   if nTimeIncrements > maxnTimeIncs
+       maxnTimeIncs = nTimeIncrements;
+   end
+end
+
 
 %% Main Solver
 xfigure
@@ -62,22 +84,23 @@ if IterationConvergenceStudy
     warning('Study must be run twice in order to get iteration errors.')
 end
 displog(model,'\n\n-------Static Implicit Non-Linear Solver-------\n');
-displog(model,[TimeStamp(),'   Starting step\n']);
+displog(model,[TimeStamp(),'   Starting step\n']);tic1 = tic;
 displog(model,'-----------------------------------------------\n');
 txt0 =  sprintf('|  i  | Step |  time  |    dt   |  iter   |   r/r0     |\n');
 txt1 =  sprintf('|-----|------|--------|---------|---------|------------|\n');
 displog(model,txt0);
 displog(model,txt1);
           
-for istep = 1:length(steps)
+for istep = 1:nSteps
    % Loop through steps
    step = steps(istep);
    analysisType = step.type;
-   maxINC = analysisType.maxEquilibriumIterations;
+   maxIter = analysisType.maxEquilibriumIterations;
    dTime = analysisType.initialTimeIncrement;
    totTime = analysisType.timePeriod;
    nTimeIncrements = totTime/dTime;
    tol = analysisType.equilibriumTolerance;
+   minTimeInc = analysisType.minTimeIncrement;
    
    if step.conservativeLoading==1
       % Compute the load vector here since we have conservative loading enabled
@@ -88,11 +111,13 @@ for istep = 1:length(steps)
    
    u = model.u0; %Initialize the displacement field
    
-   cInc = 0; %Increment counter
+   ctotIter = 0; %Total iterations
+   cInc = 0;
    time = 0;
    while 1 % Loop over all time increments
       u_prev = u;
       time = time + dTime;
+      cInc = cInc +1;
       if time > totTime
           break
       end
@@ -127,13 +152,20 @@ for istep = 1:length(steps)
           title(['Load fraction: ',num2str(loadFrac)])
       end
       
+      if cInc > 1
+          elehistvar_old =  out.step(istep).inc(cInc-1).elehistvar;
+      else
+          elehistvar_old = out.step(nSteps).inc(1).elehistvar;
+      end
+      elehistvar_new =  out.step(nSteps).inc(1).elehistvar;
       
-      
-      for iter = 1:maxINC %TODO change name to MaxIterations
+      %Newton Iterations. Equilibrium Iterations
+      for iter = 1:maxIter
           % Loop over all equilibrium iterations
           % Pre-allocate for assembler, enables paralization of the element
           % loop.    
-          cInc = cInc + 1;
+          ctotIter = ctotIter + 1;
+          
           
           g = zeros(neq,1); %Internal forces
           row = zeros(nele, idofs^2, 'double'); col = row; 
@@ -150,7 +182,7 @@ for istep = 1:length(steps)
                   % 3D
                   % Compute the loads here if we don't have conservative
                   % loading enabled. This means that the directions of the
-                  % loads are dependent och the current geometry and need
+                  % loads are dependent on the current geometry and need
                   % to be calculated. The Loading can also be a function of
                   % the continuum point.
                   if step.conservativeLoading==0
@@ -158,9 +190,11 @@ for istep = 1:length(steps)
                   end
                   
                   
+                  
                   % Computes the stiffness matrices, internal forces and
                   % resultant forces.
-                  for iel = 1:nele
+%                   disp('Assembling...'); tic;
+                  parfor iel = 1:nele
                       % Loop over all elements
                       inods = nodes(iel,:);
                       ieqs = eqsInds(iel,:)';
@@ -168,8 +202,10 @@ for istep = 1:length(steps)
 %                       fe = f(ieqs);
                       Xc = points(inods,:);
                       
-                      [Ke,ge] = UserElement(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter);
+                      ielhistvar_old = elehistvar_old(iel);
                       
+                      [Ke,ge,ielhistvar_new] = UserElement(ielhistvar_old,materialData,Xc,ue,ieqs,GP,GW,ctotIter,time,dTime,iter);
+                      elehistvar_new(iel) = ielhistvar_new;
                       
                       % Assemble
                       ii = repmat(ieqs,1,idofs); jj = ii';
@@ -185,28 +221,43 @@ for istep = 1:length(steps)
                       g(ieqs) = g(ieqs) + valg(iel,:)';
                   end
                   r = f_frac-g;
+%                   toc
                   
+%                   disp('Solving system...');tic;
                   % Solve the system
                   delta_u = u0;
                   delta_u(free) = K(free,free)\r(free);
+%                   delta_u(free) = pcg(K(free,free),r(free));
+%                   toc
                   % Update displacements
                   u = u + delta_u;
+                  
+                  out.step(istep).inc(cInc).elehistvar = elehistvar_new;
+                  out.step(istep).inc(cInc).nodhistvar.u = u;
+                  out.step(istep).inc(cInc).nodhistvar.f_frac = f_frac;
+                  out.step(istep).inc(cInc).nodhistvar.g = g;
+                  
+                  
                   
                   % Iteration criteria
                   if(iter==1)
                       r0=r;
                   end
                   stopCond=norm(r(free))/norm(r0(free));
-                  if stopCond > 1e6
+                  if stopCond > 1e5
 %                      error('Iterations are diverging!') 
                     time = time - dTime;
+                    cInc = cInc - 1;
                     dTime = dTime/2;
+                    if dTime < minTimeInc
+                       error('Min time increment reached!') 
+                    end
                     u = u_prev;
                     break;
                   end
                   
                   
-                  txt3 = sprintf('| %3d | %3d  | %0.4f | %0.4f  |  %3d    | %0.4e |  \n',cInc,istep,time,dTime,iter,stopCond);
+                  txt3 = sprintf('| %3d | %3d  | %0.4f | %0.4f  |  %3d    | %0.4e |  \n',ctotIter,istep,time,dTime,iter,stopCond);
                   displog(model,txt3);
                   
                   if IterationConvergenceStudy
@@ -235,16 +286,14 @@ for istep = 1:length(steps)
                   drawnow
           end
           
-          
-          
-          if iter == maxINC
+          if iter == maxIter
               error('Maximum equilibrium iterations exceeded. Probable divergence.')
           end
       end
       
-      if cInc > step.maxIncrement
-          error('Max increment reached.') %TODO: Figure out what Abaqus does here
-      end
+%       if cInc > step.maxIncrement
+%           error('Max increment reached.') %TODO: Figure out what Abaqus does here
+%       end
       
       if IterationConvergenceStudy
           try
@@ -263,14 +312,17 @@ for istep = 1:length(steps)
       end
       
    end
-   
-   
+   displog(model,[TimeStamp(),'\nStep done\n']);
+   toc1 = toc(tic1);
+   displog(model,['Elapsed time is ',ElapsedTime(toc1),'\n']);
     
 end
 
+out.model = model;
+
+displog(model,[TimeStamp(),'\nAll complete!\n']);
 
 
-OUT.u = u;
 end
 
 
@@ -282,5 +334,31 @@ end
 function str = TimeStamp()
     c = clock;
     str = sprintf('%d-%d-%d %d:%d:%2.1f',c(1),c(2),c(3),c(4),c(5),c(6));
+end
+
+function et = ElapsedTime(t)
+    %t is in seconds
+    nd = 0; nh = 0; nm = 0;
+    et = '';
+    if t >= 60*60*24 % more than a day
+        nd = floor(t/(60*60*24));
+        et = [num2str(nd),'d, '];
+    end
+    t = t - 60*60*24*nd;
+    
+    if t >= 60*60 % more than an hour
+        nh = floor(t/3600);
+        et = [et,num2str(nh),'h, '];
+    end
+    t = t - 60*60*nh;
+    
+    if t >= 60 % more than a minute
+        nm = floor(t/60);
+        et = [et,num2str(nm),'m, '];
+    end
+    t = t - 60*nm;
+    
+    et = [et,num2str(t),'s'];
+    
 end
 
