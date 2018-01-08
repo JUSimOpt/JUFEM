@@ -1,7 +1,9 @@
-function [Ke,ge] = UserElement_3D_Reduced(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,baseFcnParam,baseFcnParam_1P)
+function [Ke,ge,histvar] = UserElement_3D_Reduced(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,baseFcnParam)
 
 
-
+    I = eye(3);
+    Iv = I(:);  
+    
     nLocDofs = length(ieqs);
     dofs = size(GP,2);
     ge = zeros(nLocDofs,1); % element internal load vector
@@ -14,6 +16,8 @@ function [Ke,ge] = UserElement_3D_Reduced(materialData,Xc,ue,ieqs,GP,GW,cInc,tim
            4,2,5;
            6,5,3];
     nGP = size(GP,1);
+    
+      
     for i = 1:nGP
        iXi =  GP(i,:); iw = GW(i);
        [fi, detJ, B] = baseFcnParam(Xc,iXi);
@@ -32,31 +36,25 @@ function [Ke,ge] = UserElement_3D_Reduced(materialData,Xc,ue,ieqs,GP,GW,cInc,tim
             zeros(3),S_vol,zeros(3);
             zeros(3),zeros(3),S_vol];
 %         
-%         Ke_iso = Ke_iso + detJ*iw*(BL'*D_iso*BL+BN'*T_iso*BN);
-%         
-%         ge_iso = ge_iso + detJ*iw*(BL'*Sv_iso);
-%         
-%         
-%         Ke_vol = detJ*iw*(BL'*D_vol*BL+BN'*T_vol*BN);
-%         ge_vol = ge_vol + detJ*iw*(BL'*Sv_vol);
-%         
         D = D_iso + D_vol; % Constitutive tensor on Voigt form
         Sv = Sv_iso + Sv_vol; % Stress tensor on Voigt form
         
         % Stress tensor 
         S = Sv(ind);
-        T = [S,zeros(3),zeros(3);
-             zeros(3),S,zeros(3);
-             zeros(3),zeros(3),S];
         
-        % Integrate the tangential matrix 
-%         Ke = Ke + (BL'*D*BL + BN'*T*BN) * detJ*iw;
+        F=reshape(Iv+gradU,3,3)'; %Deformation gradient
+        C=F'*F; %Right Cauchy-Green tensor
+        E = (C-I)/2; %Engineering strain
+        
+        histvar.ip(i).S = S;
+        histvar.ip(i).EE = E;
+        
+%         T = [S,zeros(3),zeros(3);
+%              zeros(3),S,zeros(3);
+%              zeros(3),zeros(3),S];
         
         Ke_iso = Ke_iso + (BL'*D_iso*BL + BN'*T_iso*BN) * detJ*iw;
         Ke_vol = Ke_vol + (BL'*D_vol*BL + BN'*T_vol*BN) * detJ*iw;
-        
-        % Integrate the internal forces
-%         ge = ge + (BL'*Sv) * detJ*iw;
         
         ge_iso = ge_iso + (BL'*Sv_iso) * detJ*iw;
         ge_vol = ge_vol + (BL'*Sv_vol) * detJ*iw;
@@ -65,22 +63,18 @@ function [Ke,ge] = UserElement_3D_Reduced(materialData,Xc,ue,ieqs,GP,GW,cInc,tim
     end
     1;
     % Midpoint
-    if dofs == 3
-        iXi = [1,1,1]/2; iw = 1;
-        [fi, detJ, B] = baseFcnParam(Xc,iXi);
-        [BN,BL] = ComputeB(B,ue);
-        gradU = BN*ue;
-        [D_iso,Sv_iso,D_vol,Sv_vol]=materialData.materialFcn(gradU);
-        S_vol = Sv_vol(ind);
-        T_vol = [S_vol,zeros(3),zeros(3);
-            zeros(3),S_vol,zeros(3);
-            zeros(3),zeros(3),S_vol];
-        
-        Ke_vol = (BL'*D_vol*BL + BN'*T_vol*BN) * detJ*iw;
-        ge_vol = (BL'*Sv_vol) * detJ*iw;
-    else
-       error('Not implemented') 
-    end
+    iXi = [1,1,1]/2; iw = 1;
+    [fi, detJ, B] = baseFcnParam(Xc,iXi);
+    [BN,BL] = ComputeB(B,ue);
+    gradU = BN*ue;
+    [D_iso,Sv_iso,D_vol,Sv_vol]=materialData.materialFcn(gradU);
+    S_vol = Sv_vol(ind);
+    T_vol = [S_vol,zeros(3),zeros(3);
+        zeros(3),S_vol,zeros(3);
+        zeros(3),zeros(3),S_vol];
+    
+    Ke_vol = (BL'*D_vol*BL + BN'*T_vol*BN) * detJ*iw;
+    ge_vol = (BL'*Sv_vol) * detJ*iw;
     
     
     Ke = Ke_iso + Ke_vol;

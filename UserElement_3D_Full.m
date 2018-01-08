@@ -1,4 +1,4 @@
-function [Ke,ge] = UserElement_3D_Full(materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,baseFcnParam)
+function [Ke,ge,histvar] = UserElement_3D_Full(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,baseFcnParam)
 
 %     loadFrac = iTime/nTimeIncrements;
 
