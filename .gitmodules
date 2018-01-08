@@ -1,9 +1,9 @@
 [submodule "Hex1Mesh"]
 	path = Hex1Mesh
 	url = https://github.com/cenmir/Hex1Mesh.git
-[submodule "xfigure"]
-	path = xfigure
-	url = https://github.com/cenmir/xfigure.git
-[submodule "Gmsh"]
-	path = Gmsh
-	url = https://github.com/cenmir/Gmsh.git
+[submodule "core/Gmsh"]
+	path = core/Gmsh
+	url = https://github.com/JUSimOpt/Gmsh.git
+[submodule "core/xfigure"]
+	path = core/xfigure
+	url = https://github.com/JUSimOpt/xfigure.git
