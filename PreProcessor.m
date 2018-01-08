@@ -59,7 +59,7 @@ for i = 1:length(fnames)
     if isa(val,'function_handle')
         outString = [outString,sprintf('Material.%s: %s\n',fnames{i},func2str(val))];
     else
-        outString = [outString,sprintf('Material.%s: %s\n',fnames{i},val)];
+        outString = [outString,sprintf('Material.%s: %s\n',fnames{i},num2str(val))];
     end
     
 end
@@ -79,7 +79,7 @@ outString = [outString,sprintf('\n*Solver: %s\n',func2str(model.solver))];
 fprintf(outString)
 
 
-model.logfile.write(outString)
+model.logfile.write(outString);
 model.logfile.permission = 'a'; % Set logfile to append
 
 
