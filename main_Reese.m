@@ -2,21 +2,31 @@ clear,clc,close all
 
 % This is a demo file solving a Hyperelastic model
 % Models are created using the user defined functions in this file. 
-% The mesh is created using gmsh and an .geo file describing the geometry.
+% The mesh is created using gmsh and a .geo file describing the geometry.
 % TODO: Create an input file using ANSA
 % 
 %
 % Add the necessary packages
-addpath(fullfile('Gmsh','Gmsh'))
-addpath(fullfile('Hex1Mesh','Hex1Mesh'))
-addpath(fullfile('xFigure'))
+addpath(fullfile('core')) %All JUFEM functions are located here
+addpath(fullfile('core','Gmsh','Gmsh'))
+addpath(fullfile('core','xFigure'))
 
 
 
 
-%% Create Model
-refinements = 1; d = 0;
-mesh = CreateMesh(refinements,d);
+
+%% Create Model - User defined
+model.name = 'Reese';
+
+refinements = 0; d = 3; thin = 0;
+intRules = {'Full','Reduced','IsoStab','IsoVolStab'};
+intRule = intRules{1};
+
+for d = 4:4
+    for j = 1:4
+        intRule = intRules{j}
+
+mesh = CreateMesh(refinements,d,thin);
 mesh = CreateSets(mesh);
 mesh = CreateBoundaryConditions(mesh);
 mesh = CreateLoads(mesh);
@@ -26,32 +36,50 @@ h = mesh.vizMesh;
 h.patch.FaceColor = 'w';
 light
 1;
-model.dofs = size(mesh.P,2);
+
+
 
 % Material properties
-E = 210000; %MPa
-nu = 0;
-K=E/3/(1-2*nu);
-mu=E/2/(1+nu);
+E = 200; %GPa
+nu = 0.3;
+K=E/(3*(1-2*nu));
+mu=E/(2*(1+nu));
 mu1 = 0.5*mu;
 mu2 = mu-mu1;
 materialData(1).Type = 'Neo-Hooke';
-materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1/2,K);
+materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1,K);
 
-procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/1,'timePeriod',1,'minTimeIncrement',1/100,'maxTimeIncrement',1,...
+procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/3,'timePeriod',1,'minTimeIncrement',1/100,'maxTimeIncrement',1,...
                                      'equilibriumTolerance',1e-3,'maxEquilibriumIterations',30);
 model.step(1) = AnalysisStep('Step-1',procedureType);
 model.step(1).nonLinearGeometry = 1;
 model.step(1).conservativeLoading = 1;
 
-% model.UserElement = @ElementDataFullIntegration_3D; %Default
-model.UserElement = @ElementData1PointIntegration_3D; %Default
+
+switch intRule
+    case 'Full'
+model.UserElement = @(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_Full(...
+                     histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+                     @mesh.BaseFcnParam_Static ); % Default
+    case 'Reduced'             
+model.UserElement = @(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_Reduced(...
+                     histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+                     @mesh.BaseFcnParam_Static);
+    case 'IsoStab'  
+model.UserElement = @(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_1Point_isoStab(...
+                     histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+                     @mesh.BaseFcnParam_Static,@mesh.BaseFcnParam_1Point_Static );
+    case 'IsoVolStab'
+model.UserElement = @(histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter)UserElement_3D_1Point_IsoVolStab(...
+                     histvar,materialData,Xc,ue,ieqs,GP,GW,cInc,time,dTime,iter,...
+                     @mesh.BaseFcnParam_Static,@mesh.BaseFcnParam_1Point_Static );  
+end
+
 model.integrationOrder = 2;
 
 model.UserLoad = @StaticLoad; %Default
-model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','on');
-% model.baseFcnParam = @mesh.BaseFcnParam_Static; %Default
-model.baseFcnParam = @mesh.BaseFcnParam_1Point_Static; % One point integration
+model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStudy','off');
+
 
 
 %% Pre-processing model
@@ -64,15 +92,19 @@ vizBCandLoads(model);
 %% Solver be here
 OUT = model.solver(model);
 
+% filename = ['results//ReeseBeam_Thick_d',num2str(d),'_',intRule,'.mat']
+% save(filename,'model','OUT')
 
+    end
+end
 
 %% User Defined functions for creating the model
 
-function mesh = CreateMesh(refinements,d)
+function mesh = CreateMesh(refinements,d,thin)
 % User defined
     
     %% Modify .geo file
-    inFile = 'beamMeshGenerator.geo';
+    inFile = 'ReeseBeam.geo';
     fid = fopen(inFile,'r');
     if fid == -1
         error(['Cannot open the file: ', inFile])
@@ -86,11 +118,20 @@ function mesh = CreateMesh(refinements,d)
     fclose(fid);
     s = s{1};
     
+    if thin
+        s{7} = 'W=0.2; //mm';
+        s{8} = 'H=0.2; //mm';
+    else
+        s{7} = 'W=2; //mm';
+        s{8} = 'H=2; //mm';
+    end
+    
     s{9} = ['d = ',num2str(d),'; //mm'];
     
-    s{118} = '';
+    RefineMeshLine = 119;
+    s{RefineMeshLine} = '';
     for i = 1:refinements
-        s{118} = [s{118},'RefineMesh;'];
+        s{RefineMeshLine} = [s{RefineMeshLine},'RefineMesh;'];
     end
     
     fid = fopen(inFile,'w');
@@ -107,7 +148,7 @@ function mesh = CreateMesh(refinements,d)
     fclose(fid);
 
     %% Run gmsh
-    [status,cmdout] = RunGmshScript('beamMeshGenerator.geo','verbose','on');
+    [status,cmdout] = RunGmshScript(inFile,'verbose','on','OutFile','mesh.msh');
     msh = MshRead(fullfile(pwd,'mesh.msh'),'typesToExtract',[3,5]); %Extract element types 3 and 5 (Quads and Hex)
     1;
     %remap Gmsh hex elements to Abaqus numbering
@@ -133,32 +174,32 @@ mesh.ElementSets(1).type = ElementType.C3D8R;
 mesh.ElementSets(1).nodes = mesh.nodes;
 
 
-% mesh.ElementSets(2).name = 'LoadElementSet-1';
-% mesh.ElementSets(2).type = ElementType.TwoNode3D_Line;
-% % Define line elements at x=x1 and z = z1
-% nod = find(mesh.P(:,1)==max(mesh.P(:,1)) & mesh.P(:,3)==max(mesh.P(:,3)));
-% ele = find(any(ismember(mesh.nodes,nod),2));
-% nodes = NaN(length(ele),2);
-% for i = 1:length(ele)
-%     iel = ele(i);
-%     iv = mesh.nodes(iel,:);
-%     nodes(i,:)=iv(ismember(iv,nod));
-% end
-% mesh.ElementSets(2).nodes = nodes;
+mesh.ElementSets(2).name = 'LoadElementSet-1';
+mesh.ElementSets(2).type = ElementType.TwoNode3D_Line;
+% Define line elements at x=x1 and z = z1
+nod = find(mesh.P(:,1)==max(mesh.P(:,1)) & mesh.P(:,3)==max(mesh.P(:,3)));
+ele = find(any(ismember(mesh.nodes,nod),2));
+nodes = NaN(length(ele),2);
+for i = 1:length(ele)
+    iel = ele(i);
+    iv = mesh.nodes(iel,:);
+    nodes(i,:)=iv(ismember(iv,nod));
+end
+mesh.ElementSets(2).nodes = nodes;
 
 
-% mesh.ElementSets(3).name = 'LoadElementSet-2';
-% mesh.ElementSets(3).type = ElementType.TwoNode3D_Line;
-% % Define line elements at x=x1 and z = z0
-% nod = find(mesh.P(:,1)==max(mesh.P(:,1)) & mesh.P(:,3)==min(mesh.P(:,3)));
-% ele = find(any(ismember(mesh.nodes,nod),2));
-% nodes = NaN(length(ele),2);
-% for i = 1:length(ele)
-%     iel = ele(i);
-%     iv = mesh.nodes(iel,:);
-%     nodes(i,:)=iv(ismember(iv,nod));
-% end
-% mesh.ElementSets(3).nodes = nodes;
+mesh.ElementSets(3).name = 'LoadElementSet-2';
+mesh.ElementSets(3).type = ElementType.TwoNode3D_Line;
+% Define line elements at x=x1 and z = z0
+nod = find(mesh.P(:,1)==max(mesh.P(:,1)) & mesh.P(:,3)==min(mesh.P(:,3)));
+ele = find(any(ismember(mesh.nodes,nod),2));
+nodes = NaN(length(ele),2);
+for i = 1:length(ele)
+    iel = ele(i);
+    iv = mesh.nodes(iel,:);
+    nodes(i,:)=iv(ismember(iv,nod));
+end
+mesh.ElementSets(3).nodes = nodes;
 
 
 
@@ -177,11 +218,6 @@ mesh.BoundarieConditions(1).U3 = 0;
 % mesh.BoundarieConditions(1).UR2 = 0;
 % mesh.BoundarieConditions(1).UR3 = 0;
 
-
-
-
-
-
 end
 
 function mesh = CreateLoads(mesh)
@@ -189,12 +225,28 @@ function mesh = CreateLoads(mesh)
 
 %TODO: Select by name somehow instead of indices
 
-mesh.Loads(1).Name = 'VolumeLoad';
-mesh.Loads(1).Type = LoadType.BodyLoad;
-mesh.Loads(1).Magnitude = 100; %N/mm
-mesh.Loads(1).Direction = [0,0,-1];
-mesh.Loads(1).Set = mesh.ElementSets(1).nodes;
-mesh.Loads(1).IntegrationOrder = 2; %Linear load on edge
+mesh.Loads(1).Name = 'UpperLineLoad';
+mesh.Loads(1).Type = LoadType.EdgeLoad;
+% mesh.Loads(1).Magnitude = 0.4; %N/mm
+mesh.Loads(1).Magnitude = 4/10; %N/mm
+mesh.Loads(1).Direction = [-1,0,0];
+mesh.Loads(1).Set = mesh.ElementSets(2).nodes;
+mesh.Loads(1).IntegrationOrder = 1; %Linear load on edge
+
+mesh.Loads(2).Name = 'LowerLineLoad';
+mesh.Loads(2).Type = LoadType.EdgeLoad;
+% mesh.Loads(2).Magnitude = 0.4; %N/mm
+mesh.Loads(2).Magnitude = 4/10; %N/mm
+mesh.Loads(2).Direction = [1,0,0];
+mesh.Loads(2).Set = mesh.ElementSets(3).nodes;
+mesh.Loads(2).IntegrationOrder = 1; %Linear load on edge
+
+mesh.Loads(3).Name = 'PointLoad';
+mesh.Loads(3).Type = LoadType.PointLoad;
+% mesh.Loads(3).Magnitude = 0.2; %N
+mesh.Loads(3).Magnitude = 0.03333; %N/mm
+mesh.Loads(3).Direction = [0,1,0];
+mesh.Loads(3).Set = mesh.NodeSets(2).nodes;
 
 
 end

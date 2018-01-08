@@ -7,8 +7,9 @@
 % 
 %
 % Add the necessary packages
-addpath(fullfile('Gmsh','Gmsh'))
-addpath(fullfile('xFigure'))
+addpath(fullfile('core')) %All JUFEM functions are located here
+addpath(fullfile('core','Gmsh','Gmsh'))
+addpath(fullfile('core','xFigure'))
 
 
 
@@ -84,8 +85,8 @@ model = PreProcessor(mesh,model,materialData);
 
 %% Solver be here
 OUT = model.solver(model);
-filename = ['results//HansboBeam_F_IsoVolStab.mat']
-save(filename,'model','OUT')
+% filename = ['results//HansboBeam_F_IsoVolStab.mat']
+% save(filename,'model','OUT')
 % end
 %% Post Process
 

@@ -114,3 +114,69 @@
 % ylabel('Volume force ($GN/mm^3$)','Interpreter','latex');
 % xlabel('Tip displacement','Interpreter','latex')
 % grid on
+
+%% Reese Beam
+intRules = {'Full','Reduced','IsoStab','IsoVolStab'};
+Ux = zeros(4,4); Uy = Ux; Uz = Ux;
+for i = 1:4
+    for d = 0:3
+        filename = ['results//ReeseBeam_Thick_d',num2str(d),'_',intRules{i},'.mat'];
+        load(filename)
+        nod = OUT.model.mesh.NodeSets(2).nodes;
+        P = OUT.model.mesh.P;
+        u = OUT.step.inc(end).nodhistvar.u;
+        U = [u(1:3:end),u(2:3:end),u(3:3:end)];
+        Ux(i,d+1) = U(nod,1);
+        Uy(i,d+1) = U(nod,2);
+        Uz(i,d+1) = U(nod,3);
+    end
+end
+
+xfigure; hold on;view(2)
+msize = 6;lwidth = 1;
+x = [0:3];
+plot(x,Ux(1,:),'-o','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Ux(2,:),'-*','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Ux(3,:),'-s','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Ux(4,:),'-+','MarkerSize',msize,'LineWidth',lwidth)
+legend('Full integration',...
+       'One point integration of the volumetric term',...
+       'One point integration with stabilized isochoric term',...
+        'One point integration with stabilization')
+set(gca,'FontName','Times New Roman','FontSize',14)
+ylabel('$U_x$ displacement','Interpreter','latex');
+xlabel('distortion $d$','Interpreter','latex')
+grid on
+
+xfigure; hold on;view(2)
+msize = 6;lwidth = 1;
+x = [0:3];
+plot(x,Uy(1,:),'-o','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uy(2,:),'-*','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uy(3,:),'-s','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uy(4,:),'-+','MarkerSize',msize,'LineWidth',lwidth)
+legend('Full integration',...
+       'One point integration of the volumetric term',...
+       'One point integration with stabilized isochoric term',...
+        'One point integration with stabilization')
+set(gca,'FontName','Times New Roman','FontSize',14)
+ylabel('$U_y$ displacement','Interpreter','latex');
+xlabel('distortion $d$','Interpreter','latex')
+grid on
+
+xfigure; hold on;view(2)
+msize = 6;lwidth = 1;
+x = [0:3];
+plot(x,Uz(1,:),'-o','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uz(2,:),'-*','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uz(3,:),'-s','MarkerSize',msize,'LineWidth',lwidth)
+plot(x,Uz(4,:),'-+','MarkerSize',msize,'LineWidth',lwidth)
+legend('Full integration',...
+       'One point integration of the volumetric term',...
+       'One point integration with stabilized isochoric term',...
+        'One point integration with stabilization')
+set(gca,'FontName','Times New Roman','FontSize',14)
+ylabel('$U_z$ displacement','Interpreter','latex');
+xlabel('distortion $d$','Interpreter','latex')
+grid on
+
