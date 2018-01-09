@@ -5,6 +5,13 @@ scaleLoad = 1;
 % TODO: input arguments
 % TODO: generelize for 2D
 
+mesh = model.mesh;
+
+xfigure
+h = mesh.vizMesh();
+h.patch.FaceColor = 'w';
+light
+
 dofs = model.dofs;
 
 hold on
