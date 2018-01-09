@@ -7,9 +7,9 @@
 % 
 %
 % Add the necessary packages
-addpath(fullfile('core')) %All JUFEM functions are located here
-addpath(fullfile('core','Gmsh','Gmsh'))
-addpath(fullfile('core','xFigure'))
+addpath(fullfile('../../core')) %All JUFEM functions are located here
+addpath(fullfile('../../core','Gmsh','Gmsh'))
+addpath(fullfile('../../core','xFigure'))
 
 
 
@@ -46,7 +46,7 @@ materialData(1).materialFcn = @(gradU)NeoHook3D_2PK(gradU,mu1,K);
 materialData(1).nu = nu;
 materialData(1).E = E;
 
-procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/10,'timePeriod',1,'minTimeIncrement',1/1000,'maxTimeIncrement',1,...
+procedureType = StaticGeneralAnalyis('initialTimeIncrement',1/3,'timePeriod',1,'minTimeIncrement',1/1000,'maxTimeIncrement',1,...
                                      'equilibriumTolerance',1e-3,'maxEquilibriumIterations',30);
 model.step(1) = AnalysisStep('Step-1',procedureType);
 model.step(1).nonLinearGeometry = 1;
@@ -81,7 +81,7 @@ model.solver = @(model)SolveStaticNonLinImplicit(model,'IterationConvergenceStud
 % TODO inport model from .mat and run through the PreProcessor
 model = PreProcessor(mesh,model,materialData);
 
-% vizBCandLoads(model);
+vizBCandLoads(model);
 
 %% Solver be here
 OUT = model.solver(model);

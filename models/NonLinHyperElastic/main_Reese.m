@@ -7,9 +7,9 @@ clear,clc,close all
 % 
 %
 % Add the necessary packages
-addpath(fullfile('core')) %All JUFEM functions are located here
-addpath(fullfile('core','Gmsh','Gmsh'))
-addpath(fullfile('core','xFigure'))
+addpath(fullfile('../../core')) %All JUFEM functions are located here
+addpath(fullfile('../../core','Gmsh','Gmsh'))
+addpath(fullfile('../../core','xFigure'))
 
 
 
@@ -22,7 +22,7 @@ refinements = 0; d = 3; thin = 0;
 intRules = {'Full','Reduced','IsoStab','IsoVolStab'};
 intRule = intRules{1};
 
-for d = 4:4
+for d = 0:3
     for j = 1:4
         intRule = intRules{j}
 
